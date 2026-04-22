@@ -1,15 +1,17 @@
-# Push BugDetector Pro to GitHub
-# Run: .\scripts\push-to-github.ps1
+# Push BugDetector Pro to GitHub (non-interactive)
+# Usage: .\scripts\push-to-github-cli.ps1 -Username "youruser" -Token "ghp_xxx"
+param(
+  [Parameter(Mandatory=$true)]
+  [string]$Username,
+
+  [Parameter(Mandatory=$true)]
+  [string]$Token
+)
 
 $repoName = "bug-detector-pro"
-$username = Read-Host "Enter your GitHub username"
-$token = Read-Host "Enter your GitHub Personal Access Token (classic)" -AsSecureString
-
-$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($token)
-$plainToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
 
 $headers = @{
-  Authorization = "token $plainToken"
+  Authorization = "token $Token"
   Accept = "application/vnd.github.v3+json"
 }
 
@@ -29,7 +31,7 @@ try {
   exit 1
 }
 
-$remoteUrl = "https://$username`:$plainToken@github.com/$username/$repoName.git"
+$remoteUrl = "https://$Username`:$Token@github.com/$Username/$repoName.git"
 
 cd $PSScriptRoot\..
 
@@ -42,7 +44,7 @@ git push -u origin main --force
 
 if ($?) {
   Write-Host "Push completed!"
-  Write-Host "URL: https://github.com/$username/$repoName"
+  Write-Host "URL: https://github.com/$Username/$repoName"
 } else {
   Write-Host "Push failed"
 }
