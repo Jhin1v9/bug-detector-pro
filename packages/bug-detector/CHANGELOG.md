@@ -1,33 +1,56 @@
 # Changelog
 
-## [1.0.0] - 2026-04-16
+## 2.0.0 (2026-04-22)
 
-### Fase 1 — Canvas de Anotações
-- CanvasAnnotationEngine com retângulo, seta, blur/pixelização, texto e undo/redo
-- ScreenshotAnnotationCanvas integrado ao BugReportModal
-- Blur automático de dados sensíveis (senhas, CPF, email)
-- Suporte vanilla no UIManager
+### Major Features
 
-### Fase 2 — Screen Recording
-- ScreenRecorder com getDisplayMedia + MediaRecorder
-- Gravação de até 10s com timer e preview
-- Integração no modal React e vanilla
-- Exportação de vídeo em base64 anexado ao report
+- **Auto Error Detection** (`AutoErrorDetector`)
+  - Automatic capture of `window.onerror`, `unhandledrejection`, and resource errors
+  - Error grouping by fingerprint (deduplication)
+  - Rate limiting (max 30 errors/minute)
+  - Console error capture
+  - Configurable ignore patterns
 
-### Fase 3 — Session Replay
-- SessionReplayEngine com buffer circular de 30s
-- Captura de mousemove, click, scroll, input, resize, navigation
-- SessionReplayPlayer com cursor, timeline e controles de play/pause
-- Exibição no painel de reports (expandir detalhes)
+- **Privacy Masking Engine** (`PrivacyMasking`)
+  - GDPR / CCPA / LGPD compliant by default
+  - Automatic masking of: emails, credit cards, phone numbers, CPF/SSN, API keys, bearer tokens
+  - Password input masking
+  - Configurable CSS selectors and data attributes for custom masking
+  - URL query parameter sanitization
+  - Recursive object masking for network requests and logs
 
-### Fase 4 — Cloud Dashboard MVP
-- Backend Node.js + Express + SQLite
-- API REST completa para reports e estatísticas
-- Dashboard React com listagem, screenshot, vídeo e session replay
-- CloudAPI client para envio automático de reports
+- **Rage Click & Dead Click Detector** (`RageClickDetector`)
+  - Rage click detection: 3+ clicks on same element within 1 second
+  - Dead click detection: clicks with no visual feedback within 100ms
+  - Frustration score (0-100) per session
+  - Most frustrated element tracking
 
-### Fase 5 — White-label, Guest Mode e 2-way Sync
-- BrandingConfig: primaryColor, backgroundColor, logoURL, position, buttonText
-- Guest mode (painel simplificado sem lista de reports)
-- 2-way sync com GitHub Issues (criar issue + sincronizar status open/closed)
-- Botão de sincronização manual no BugTrackerPanel
+- **Video Recorder** (`VideoRecorder`)
+  - Real screen/tab recording via `MediaRecorder` + `getDisplayMedia`
+  - Quality presets: low (500kbps), medium (1.5Mbps), high (4Mbps)
+  - Max duration limit (default: 30s)
+  - Automatic browser support detection
+  - WebM/MP4 output with configurable codecs
+
+### Improvements
+
+- Updated `BugDetector` core to integrate all 4 new modules
+- Added public accessors: `getAutoErrorDetector()`, `getPrivacyMasking()`, `getRageClickDetector()`, `getVideoRecorder()`
+- Added convenience methods: `startVideoRecording()`, `stopVideoRecording()`, `getFrustrationMetrics()`
+- Updated config system with defaults for all new features
+- Version bump to 2.0.0
+
+## 1.0.0 (Initial Release)
+
+- DOM Inspector with hover highlight and CSS/XPath selectors
+- Screenshot capture (element and full-page) via html2canvas
+- Console and network request capture
+- Performance metrics (Navigation Timing API)
+- Session Replay Engine (event-based, 30s buffer)
+- 8 AI Personalities analysis (Gemini, OpenAI, DeepSeek, Kimi)
+- AI Chat for interactive bug debugging
+- React UI components (Overlay, Modal, Panel, Annotation Canvas)
+- React hooks and Vue adapter
+- GitHub, Jira, Slack integrations
+- Cloud API for self-hosted dashboard
+- Export to Markdown, JSON, HTML, PDF

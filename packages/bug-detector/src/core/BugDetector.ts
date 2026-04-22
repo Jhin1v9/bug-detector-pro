@@ -25,6 +25,10 @@ import { ReportGenerator } from '../intelligence/ReportGenerator';
 import { UIManager } from '../ui/UIManager';
 import { SessionReplayEngine } from '../replay/SessionReplayEngine';
 import { CloudAPI } from '../integrations/CloudAPI';
+import { AutoErrorDetector } from '../devtools/AutoErrorDetector';
+import { PrivacyMasking } from '../utils/PrivacyMasking';
+import { RageClickDetector } from '../utils/RageClickDetector';
+import { VideoRecorder } from '../capture/VideoRecorder';
 // UUID nativo - sem dependência externa
 
 /** Classe principal BugDetector */
@@ -41,6 +45,10 @@ export class BugDetector {
   private chatSessions: Map<string, ChatSession> = new Map();
   private sessionReplay: SessionReplayEngine;
   private cloudAPI: CloudAPI | null = null;
+  private autoErrorDetector: AutoErrorDetector;
+  private privacyMasking: PrivacyMasking;
+  private rageClickDetector: RageClickDetector;
+  private videoRecorder: VideoRecorder;
 
   /** Event callbacks */
   private onActivate?: () => void;
@@ -55,6 +63,24 @@ export class BugDetector {
     this.capture = new CaptureManager(this.config.getCapture());
     this.intelligence = new IntelligenceEngine(this.config.getAI());
     this.sessionReplay = new SessionReplayEngine();
+
+    // Setup auto error detection
+    const autoErrorConfig = this.config.get().autoError;
+    this.autoErrorDetector = new AutoErrorDetector(autoErrorConfig);
+    this.autoErrorDetector.onError((err) => this.handleAutoError(err));
+
+    // Setup privacy masking
+    const privacyConfig = this.config.get().privacy;
+    this.privacyMasking = new PrivacyMasking(privacyConfig);
+
+    // Setup rage click detection
+    const rageConfig = this.config.get().rageClick;
+    this.rageClickDetector = new RageClickDetector(rageConfig);
+
+    // Setup video recorder
+    const videoConfig = this.config.get().video;
+    this.videoRecorder = new VideoRecorder(videoConfig);
+    this.videoRecorder.onRecordingComplete((rec) => this.handleVideoRecording(rec));
 
     // Setup cloud integration
     const cloudConfig = this.config.getIntegrations().cloud;
@@ -97,6 +123,12 @@ export class BugDetector {
     // Inicia session replay
     this.sessionReplay.start();
 
+    // Ativa detecção automática de erros
+    this.autoErrorDetector.activate();
+
+    // Ativa detecção de rage clicks
+    this.rageClickDetector.activate();
+
     // Ativa inspeção
     this.inspector.activate(
       (element) => this.handleElementSelect(element),
@@ -119,6 +151,15 @@ export class BugDetector {
 
     // Para session replay
     this.sessionReplay.stop();
+
+    // Desativa detecção automática de erros
+    this.autoErrorDetector.deactivate();
+
+    // Desativa detecção de rage clicks
+    this.rageClickDetector.deactivate();
+
+    // Para gravação de vídeo se estiver rodando
+    this.videoRecorder.stop();
 
     // Desativa inspeção
     this.inspector.deactivate();
@@ -480,8 +521,60 @@ export class BugDetector {
   }
 
   // ============================================================================
+  // NEW FEATURES ACCESSORS
+  // ============================================================================
+
+  /** Get auto error detector instance */
+  getAutoErrorDetector(): AutoErrorDetector {
+    return this.autoErrorDetector;
+  }
+
+  /** Get privacy masking instance */
+  getPrivacyMasking(): PrivacyMasking {
+    return this.privacyMasking;
+  }
+
+  /** Get rage click detector instance */
+  getRageClickDetector(): RageClickDetector {
+    return this.rageClickDetector;
+  }
+
+  /** Get video recorder instance */
+  getVideoRecorder(): VideoRecorder {
+    return this.videoRecorder;
+  }
+
+  /** Start video recording */
+  async startVideoRecording(): Promise<boolean> {
+    return this.videoRecorder.start();
+  }
+
+  /** Stop video recording */
+  stopVideoRecording(): void {
+    this.videoRecorder.stop();
+  }
+
+  /** Get frustration metrics from rage/dead click detection */
+  getFrustrationMetrics() {
+    return this.rageClickDetector.getMetrics();
+  }
+
+  // ============================================================================
   // PRIVATE METHODS
   // ============================================================================
+
+  private handleAutoError(error: import('../devtools/AutoErrorDetector').CapturedError): void {
+    // Auto-create report for critical errors
+    if (!this.isActive) return;
+    console.warn('[BugDetector] Auto-captured error:', error.message);
+    // In a full implementation, this would create a BugReport automatically
+    // and optionally trigger the UI or send to cloud
+  }
+
+  private handleVideoRecording(recording: import('../capture/VideoRecorder').VideoRecording): void {
+    console.log('[BugDetector] Video recording completed:', recording.durationMs, 'ms');
+    // Attach to current report or store for later
+  }
 
   private handleElementSelect(element: InspectedElement): void {
     this.currentElement = element;

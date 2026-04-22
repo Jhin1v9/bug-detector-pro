@@ -2,7 +2,7 @@
  * Gerenciamento de configuração do BugDetector
  */
 
-import type { BugDetectorConfig, AIConfig, IntegrationsConfig, CaptureConfig, BrandingConfig } from '../types';
+import type { BugDetectorConfig, AIConfig, IntegrationsConfig, CaptureConfig, BrandingConfig, AutoErrorConfig, PrivacyConfig, RageClickConfig, VideoRecorderOptions } from '../types';
 
 /** Configuração padrão */
 export const DEFAULT_CONFIG: Required<BugDetectorConfig> = {
@@ -31,6 +31,45 @@ export const DEFAULT_CONFIG: Required<BugDetectorConfig> = {
   callbacks: {},
   branding: {},
   guestMode: false,
+  autoError: {
+    enabled: true,
+    captureConsoleErrors: true,
+    captureResourceErrors: true,
+    maxErrorsPerMinute: 30,
+    sampleRate: 1.0,
+    includeLocalhost: true,
+    ignorePatterns: [
+      /Script error\.?/i,
+      /chrome-extension:\/\//i,
+      /moz-extension:\/\//i,
+      /ResizeObserver loop limit exceeded/i,
+    ],
+  },
+  privacy: {
+    enabled: true,
+    maskPasswordInputs: true,
+    maskCreditCards: true,
+    maskEmails: true,
+    maskPhones: true,
+    maskTaxIds: true,
+    maskApiKeys: true,
+    maskSelectors: [],
+    maskAttributes: ['data-bugdetector-mask', 'data-mask'],
+    maskReplacement: '[REDACTED]',
+    maskInScreenshots: false,
+  },
+  rageClick: {
+    enabled: true,
+    rageWindowMs: 1000,
+    rageThreshold: 3,
+    deadClickThresholdMs: 100,
+    ignoreSelectors: ['[data-bug-detector-ui]', 'body', 'html'],
+  },
+  video: {
+    maxDurationMs: 30000,
+    quality: 'medium',
+    audio: false,
+  },
 };
 
 /** Classe de configuração */
@@ -63,6 +102,10 @@ export class Config {
       capture: { ...defaultConfig.capture, ...userConfig.capture },
       callbacks: { ...defaultConfig.callbacks, ...userConfig.callbacks },
       branding: { ...defaultConfig.branding, ...userConfig.branding },
+      autoError: { ...defaultConfig.autoError, ...userConfig.autoError },
+      privacy: { ...defaultConfig.privacy, ...userConfig.privacy },
+      rageClick: { ...defaultConfig.rageClick, ...userConfig.rageClick },
+      video: { ...defaultConfig.video, ...userConfig.video },
     };
   }
 

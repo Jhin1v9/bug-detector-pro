@@ -53,6 +53,10 @@ export type {
   ExportResult,
   UseBugDetectorProps,
   UseBugDetectorReturn,
+  AutoErrorConfig,
+  PrivacyConfig,
+  RageClickConfig,
+  VideoRecorderOptions,
 } from './types';
 
 // UI React
@@ -79,6 +83,7 @@ export { ReportGenerator } from './intelligence/ReportGenerator';
 
 // Capture
 export { CaptureManager } from './capture/CaptureManager';
+export { VideoRecorder } from './capture/VideoRecorder';
 
 // Storage
 export { StorageManager } from './storage/StorageManager';
@@ -90,6 +95,8 @@ export { SlackIntegration } from './integrations/Slack';
 
 // Utils
 export { RateLimiter } from './utils/RateLimiter';
+export { PrivacyMasking } from './utils/PrivacyMasking';
+export { RageClickDetector } from './utils/RageClickDetector';
 
 // DevTools
 export {
@@ -98,10 +105,11 @@ export {
   DeviceInfo,
   ScreenRecorder,
   AIAnalyzer,
+  AutoErrorDetector,
 } from './devtools';
 
 // Version
-export const VERSION = '1.0.0';
+export const VERSION = '2.0.0';
 
 // Default export
 export { BugDetector as default } from './core/BugDetector';

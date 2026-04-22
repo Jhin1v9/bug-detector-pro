@@ -1,6 +1,6 @@
 {
   "name": "@auris/bug-detector",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Ferramenta profissional de debug com IA para qualquer projeto web",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",

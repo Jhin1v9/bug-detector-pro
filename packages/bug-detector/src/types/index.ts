@@ -32,6 +32,14 @@ export interface BugDetectorConfig {
   branding?: BrandingConfig;
   /** Modo guest (apenas botão de report, sem painel completo) */
   guestMode?: boolean;
+  /** Configuração de detecção automática de erros */
+  autoError?: AutoErrorConfig;
+  /** Configuração de privacidade / masking de PII */
+  privacy?: PrivacyConfig;
+  /** Configuração de detecção de rage/dead clicks */
+  rageClick?: RageClickConfig;
+  /** Configuração de gravação de vídeo */
+  video?: VideoRecorderOptions;
 }
 
 /** Configuração de IA */
@@ -130,6 +138,63 @@ export interface BugDetectorCallbacks {
   onDeactivate?: () => void;
   /** Chamado quando um elemento é selecionado */
   onElementSelected?: (element: InspectedElement) => void;
+}
+
+// ============================================================================
+// AUTO ERROR DETECTION
+// ============================================================================
+
+export interface AutoErrorConfig {
+  enabled: boolean;
+  captureConsoleErrors: boolean;
+  captureResourceErrors: boolean;
+  maxErrorsPerMinute: number;
+  sampleRate: number;
+  includeLocalhost: boolean;
+  ignorePatterns: RegExp[];
+}
+
+// ============================================================================
+// PRIVACY MASKING
+// ============================================================================
+
+export interface PrivacyConfig {
+  enabled: boolean;
+  maskPasswordInputs: boolean;
+  maskCreditCards: boolean;
+  maskEmails: boolean;
+  maskPhones: boolean;
+  maskTaxIds: boolean;
+  maskApiKeys: boolean;
+  maskSelectors: string[];
+  maskAttributes: string[];
+  maskReplacement: string;
+  maskInScreenshots: boolean;
+}
+
+// ============================================================================
+// RAGE CLICK DETECTION
+// ============================================================================
+
+export interface RageClickConfig {
+  enabled: boolean;
+  rageWindowMs: number;
+  rageThreshold: number;
+  deadClickThresholdMs: number;
+  ignoreSelectors: string[];
+}
+
+// ============================================================================
+// VIDEO RECORDER
+// ============================================================================
+
+export interface VideoRecorderOptions {
+  maxDurationMs?: number;
+  mimeType?: string;
+  videoBitsPerSecond?: number;
+  frameRate?: number;
+  audio?: boolean;
+  quality?: 'low' | 'medium' | 'high';
 }
 
 // ============================================================================
