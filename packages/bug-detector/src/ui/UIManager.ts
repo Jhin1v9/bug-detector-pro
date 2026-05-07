@@ -3,7 +3,7 @@
  * Controla todos os elementos visuais da ferramenta
  */
 
-import type { InspectedElement, BugReport, CreateReportData, BrandingConfig } from '../types';
+import type { InspectedElement, BugReport, CreateReportData, BrandingConfig, AIEnhancedReport } from '../types';
 import { CanvasAnnotationEngine } from './CanvasAnnotationEngine';
 import { ScreenRecorder } from '../capture/ScreenRecorder';
 
@@ -14,6 +14,12 @@ interface UIManagerCallbacks {
   onElementInspect: (element: InspectedElement) => void;
   onCreateReport: (data: CreateReportData) => Promise<BugReport>;
   onSendMessage: (sessionId: string, message: string) => Promise<any>;
+  onEnhanceReport: (data: {
+    description: string;
+    expectedBehavior?: string;
+    element: InspectedElement;
+    screenshotBase64?: string;
+  }) => Promise<AIEnhancedReport>;
 }
 
 /** Classe UIManager */
@@ -359,6 +365,7 @@ export class UIManager {
     let recordedVideoBase64: string | null = null;
     let isRecording = false;
     let recorder: ScreenRecorder | null = null;
+    let aiMarkdownReport: string | undefined;
 
     const screenshotSection = screenshotUrl ? `
       <div style="margin-bottom: 16px;">
@@ -408,6 +415,21 @@ export class UIManager {
         <div style="margin-bottom: 16px;">
           <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Comportamento Esperado</label>
           <textarea data-bugdetector-expected placeholder="Como deveria funcionar? (opcional)" style="width: 100%; min-height: 60px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 14px; resize: vertical; font-family: inherit;"></textarea>
+        </div>
+        <div style="margin-bottom: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;" data-bugdetector-ai-section>
+          <button data-bugdetector-ai-rewrite style="width: 100%; padding: 10px 12px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">Reescrever com IA + .BRAIN</button>
+          <div data-bugdetector-ai-status style="display: none; margin-top: 8px; font-size: 13px; color: #93c5fd;"></div>
+          <div data-bugdetector-ai-preview style="display: none; margin-top: 10px; padding: 12px; background: rgba(8,47,73,0.45); border: 1px solid rgba(56,189,248,0.25); border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 8px;">
+              <strong data-bugdetector-ai-title style="font-size: 13px; color: #e0f2fe;"></strong>
+              <span data-bugdetector-ai-severity style="font-size: 11px; color: #bae6fd; text-transform: uppercase;"></span>
+            </div>
+            <div data-bugdetector-ai-description style="font-size: 13px; color: #cbd5e1; line-height: 1.45; white-space: pre-wrap;"></div>
+            <details style="margin-top: 10px;">
+              <summary style="cursor: pointer; color: #67e8f9; font-size: 12px;">Markdown corrigido</summary>
+              <pre data-bugdetector-ai-markdown style="margin-top: 8px; max-height: 160px; overflow: auto; white-space: pre-wrap; color: #e2e8f0; font-size: 11px; line-height: 1.45;"></pre>
+            </details>
+          </div>
         </div>
         ${screenshotSection}
         <div style="margin-bottom: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;" data-bugdetector-video-section>
@@ -459,6 +481,66 @@ export class UIManager {
     
     modal.querySelector('[data-bugdetector-close-modal]')?.addEventListener('click', closeModal);
     modal.querySelector('[data-bugdetector-btn-cancel]')?.addEventListener('click', closeModal);
+
+    const aiRewriteBtn = modal.querySelector('[data-bugdetector-ai-rewrite]') as HTMLButtonElement | null;
+    const aiStatus = modal.querySelector('[data-bugdetector-ai-status]') as HTMLElement | null;
+    const aiPreview = modal.querySelector('[data-bugdetector-ai-preview]') as HTMLElement | null;
+    const aiTitle = modal.querySelector('[data-bugdetector-ai-title]') as HTMLElement | null;
+    const aiSeverity = modal.querySelector('[data-bugdetector-ai-severity]') as HTMLElement | null;
+    const aiDescription = modal.querySelector('[data-bugdetector-ai-description]') as HTMLElement | null;
+    const aiMarkdown = modal.querySelector('[data-bugdetector-ai-markdown]') as HTMLElement | null;
+
+    aiRewriteBtn?.addEventListener('click', async () => {
+      const descriptionEl = modal.querySelector('[data-bugdetector-description]') as HTMLTextAreaElement | null;
+      const expectedEl = modal.querySelector('[data-bugdetector-expected]') as HTMLTextAreaElement | null;
+      const severityEl = modal.querySelector('[data-bugdetector-severity]') as HTMLSelectElement | null;
+      const description = descriptionEl?.value.trim() || '';
+
+      if (!description) {
+        alert('Escreva um comentário bruto antes de chamar a IA');
+        return;
+      }
+
+      aiRewriteBtn.disabled = true;
+      aiRewriteBtn.textContent = 'Reescrevendo...';
+      if (aiStatus) {
+        aiStatus.style.display = 'block';
+        aiStatus.style.color = '#93c5fd';
+        aiStatus.textContent = 'IA interna usando .BRAIN para estruturar o report...';
+      }
+
+      try {
+        const result = await this.callbacks.onEnhanceReport({
+          description,
+          expectedBehavior: expectedEl?.value.trim() || undefined,
+          element,
+          screenshotBase64: screenshotUrl || undefined,
+        });
+
+        aiMarkdownReport = result.markdown;
+        if (descriptionEl) descriptionEl.value = result.description;
+        if (severityEl) severityEl.value = result.severity;
+        if (aiTitle) aiTitle.textContent = result.title;
+        if (aiSeverity) aiSeverity.textContent = result.severity;
+        if (aiDescription) aiDescription.textContent = result.description;
+        if (aiMarkdown) aiMarkdown.textContent = result.markdown;
+        if (aiPreview) aiPreview.style.display = 'block';
+        if (aiStatus) {
+          aiStatus.style.color = '#34d399';
+          aiStatus.textContent = 'Comentário reescrito e Markdown corrigido anexado ao report.';
+        }
+      } catch (error) {
+        aiMarkdownReport = undefined;
+        if (aiStatus) {
+          aiStatus.style.display = 'block';
+          aiStatus.style.color = '#f87171';
+          aiStatus.textContent = (error as Error).message;
+        }
+      } finally {
+        aiRewriteBtn.disabled = false;
+        aiRewriteBtn.textContent = 'Reescrever com IA + .BRAIN';
+      }
+    });
     
     modal.querySelector('[data-bugdetector-btn-submit]')?.addEventListener('click', async () => {
       const description = (modal.querySelector('[data-bugdetector-description]') as HTMLTextAreaElement)?.value;
@@ -478,6 +560,7 @@ export class UIManager {
           type,
           severity,
           expectedBehavior,
+          markdownReport: aiMarkdownReport,
           element,
           screenshot: includeScreenshot ? (annotatedUrl || screenshotUrl || undefined) : undefined,
           video: recordedVideoBase64 || undefined,

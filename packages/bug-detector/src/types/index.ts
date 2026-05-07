@@ -48,6 +48,8 @@ export interface AIConfig {
   apiKey: string;
   /** Modelo a ser usado */
   model?: string;
+  /** Base URL opcional para providers OpenAI-compatible como Kimi/Moonshot */
+  baseURL?: string;
   /** Temperatura (0-1) */
   temperature?: number;
   /** Timeout em ms */
@@ -297,6 +299,8 @@ export interface BugReport {
   severity: 'low' | 'medium' | 'high' | 'critical';
   /** Comportamento esperado */
   expectedBehavior?: string;
+  /** Markdown corrigido/estruturado gerado pela IA */
+  markdownReport?: string;
   
   // Análise IA
   /** Análise da IA */
@@ -381,6 +385,14 @@ export interface AIAnalysis {
   processingTime?: number;
   /** Timestamp de geração */
   generatedAt: string;
+}
+
+/** Resultado da IA ao melhorar o comentário do report */
+export interface AIEnhancedReport {
+  title: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  markdown: string;
 }
 
 /** Categoria de bug */
@@ -585,6 +597,7 @@ export interface CreateReportData {
   type?: BugReport['type'];
   severity?: BugReport['severity'];
   expectedBehavior?: string;
+  markdownReport?: string;
   element?: InspectedElement;
   screenshot?: string;
   video?: string;

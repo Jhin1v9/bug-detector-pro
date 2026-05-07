@@ -114,6 +114,13 @@ export class ReportGenerator {
       lines.push('');
     }
 
+    if (report.markdownReport) {
+      lines.push('## Markdown corrigido pela IA');
+      lines.push('');
+      lines.push(report.markdownReport);
+      lines.push('');
+    }
+
     // Screenshot
     if (options.includeScreenshot && report.screenshot) {
       lines.push('## 📸 Screenshot');
@@ -166,14 +173,18 @@ export class ReportGenerator {
 
   private static generateAIMarkdown(analysis: AIAnalysis): string {
     const lines: string[] = [];
+    const category = analysis.category ?? 'other';
+    const severity = analysis.severity ?? 'medium';
+    const confidence = analysis.confidence ?? 0;
+    const rootCause = analysis.rootCause || 'Nao disponivel';
 
-    lines.push(`**Categoria**: ${analysis.category}`);
-    lines.push(`**Severidade**: ${analysis.severity}`);
+    lines.push(`**Categoria**: ${category}`);
+    lines.push(`**Severidade**: ${severity}`);
     lines.push(`**Confiança**: ${analysis.confidence}%`);
     lines.push('');
 
     lines.push('### Causa Raiz');
-    lines.push(analysis.rootCause);
+    lines.push(rootCause);
     lines.push('');
 
     lines.push('### Descrição Técnica');

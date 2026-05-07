@@ -15,9 +15,10 @@ export const exampleConfig: BugDetectorConfig = {
 
   // Inteligência Artificial
   ai: {
-    provider: 'gemini',
-    apiKey: process.env.VITE_GEMINI_API_KEY || '',
-    model: 'gemini-pro',
+    provider: 'kimi',
+    apiKey: process.env.VITE_KIMI_API_KEY || '',
+    model: 'kimi-for-coding',
+    baseURL: 'https://api.kimi.com/coding/v1',
     temperature: 0.3,
     timeout: 30000,
   },

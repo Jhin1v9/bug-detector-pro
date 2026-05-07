@@ -42,8 +42,10 @@ import { useBugDetector } from '@auris/bug-detector/react';
 function App() {
   const { isActive, toggle, reports } = useBugDetector({
     ai: {
-      provider: 'gemini',
-      apiKey: 'YOUR_API_KEY',
+      provider: 'kimi',
+      apiKey: 'YOUR_KIMI_API_KEY',
+      model: 'kimi-for-coding',
+      baseURL: 'https://api.kimi.com/coding/v1',
     },
     integrations: {
       github: { repo: 'user/repo', token: 'ghp_xxx' },
@@ -68,7 +70,12 @@ function App() {
 <script src="https://unpkg.com/@auris/bug-detector/dist/bug-detector.iife.js"></script>
 <script>
   const detector = new BugDetector.BugDetector({
-    ai: { provider: 'gemini', apiKey: 'YOUR_KEY' }
+    ai: {
+      provider: 'kimi',
+      apiKey: 'YOUR_KIMI_API_KEY',
+      model: 'kimi-for-coding',
+      baseURL: 'https://api.kimi.com/coding/v1'
+    }
   });
   detector.activate();
 </script>
@@ -80,7 +87,7 @@ function App() {
 import { createBugDetector } from '@auris/bug-detector/vue';
 
 const detector = createBugDetector({
-  ai: { provider: 'openai', apiKey: 'sk-xxx' }
+  ai: { provider: 'kimi', apiKey: 'YOUR_KIMI_API_KEY', model: 'kimi-for-coding' }
 });
 ```
 

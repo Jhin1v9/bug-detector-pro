@@ -7,11 +7,21 @@ import type {
   BugReport, 
   AIAnalysis, 
   AIConfig, 
+  AIEnhancedReport,
   PersonalityAnalysis, 
   PersonalityType,
 } from '../types';
 
 import { RateLimiter } from '../utils/RateLimiter';
+
+const BRAIN_REWRITE_CONTEXT = `
+Sistema .BRAIN ativo para reescrita de reports:
+- Testing Engineer: transformar relato bruto em bug report reproduzível, com comportamento atual, esperado, evidências e risco.
+- TypeScript Master: destacar contratos, null safety, tipos, estados e possíveis pontos de runtime quando houver indício técnico.
+- UI/UX Engineer: explicar impacto visual/interativo, acessibilidade, feedback ao usuário e consistência da interface.
+- DX Engineer: entregar instruções claras para o desenvolvedor corrigir sem ambiguidade.
+Prioridade: clareza, precisão técnica, Markdown limpo e ação concreta.
+`;
 
 /** Resposta do chat */
 interface ChatResponse {
@@ -97,6 +107,31 @@ export class IntelligenceEngine {
     };
   }
 
+  /** Reescreve o comentário bruto e devolve Markdown técnico corrigido */
+  async enhanceReportComment(context: {
+    description: string;
+    expectedBehavior?: string;
+    element: {
+      tag: string;
+      selector: string;
+      xpath: string;
+      className: string;
+      computedStyles: Record<string, string>;
+    };
+    pageUrl: string;
+    pageTitle: string;
+    screenshotBase64?: string;
+  }): Promise<AIEnhancedReport> {
+    if (this.config.provider === 'none') {
+      throw new Error('Provedor de IA não configurado');
+    }
+
+    await this.rateLimiter.waitForSlot();
+    const prompt = this.buildEnhanceReportPrompt(context);
+    const response = await this.callAI(prompt);
+    return this.parseEnhancedReport(response, context);
+  }
+
   /** Verifica se está processando */
   isAnalyzing(): boolean {
     return this.isProcessing;
@@ -129,7 +164,27 @@ export class IntelligenceEngine {
     const response = await this.callAI(prompt);
 
     try {
-      return JSON.parse(response);
+      const parsed = JSON.parse(response) as Partial<AIAnalysis>;
+      if (!parsed.rootCause || !parsed.severity || typeof parsed.confidence !== 'number') {
+        return this.createFallbackConsolidation(report, analyses);
+      }
+
+      return {
+        provider: this.config.provider === 'none' ? 'gemini' : this.config.provider,
+        severity: parsed.severity,
+        rootCause: parsed.rootCause,
+        category: parsed.category,
+        technicalDescription: parsed.technicalDescription,
+        analysis: parsed.analysis,
+        solution: parsed.solution,
+        promptDev: parsed.promptDev,
+        recommendations: parsed.recommendations ?? [],
+        codeFix: parsed.codeFix,
+        personalityAnalyses: parsed.personalityAnalyses ?? analyses,
+        confidence: parsed.confidence,
+        processingTime: parsed.processingTime,
+        generatedAt: parsed.generatedAt ?? new Date().toISOString(),
+      };
     } catch {
       // Fallback
       return this.createFallbackConsolidation(report, analyses);
@@ -173,7 +228,7 @@ export class IntelligenceEngine {
     );
 
     if (!response.ok) {
-      throw new Error(`Erro na API Gemini: ${response.statusText}`);
+      throw new Error(`Erro na API Gemini: ${await this.readAPIError(response)}`);
     }
 
     const data = await response.json();
@@ -199,7 +254,7 @@ export class IntelligenceEngine {
     });
 
     if (!response.ok) {
-      throw new Error(`Erro na API OpenAI: ${response.statusText}`);
+      throw new Error(`Erro na API OpenAI: ${await this.readAPIError(response)}`);
     }
 
     const data = await response.json();
@@ -224,7 +279,7 @@ export class IntelligenceEngine {
     });
 
     if (!response.ok) {
-      throw new Error(`Erro na API DeepSeek: ${response.statusText}`);
+      throw new Error(`Erro na API DeepSeek: ${await this.readAPIError(response)}`);
     }
 
     const data = await response.json();
@@ -233,8 +288,9 @@ export class IntelligenceEngine {
 
   private async callKimi(prompt: string): Promise<string> {
     this.rateLimiter.recordRequest();
+    const baseURL = (this.config.baseURL || 'https://api.kimi.com/coding/v1').replace(/\/$/, '');
     
-    const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+    const response = await fetch(`${baseURL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -249,11 +305,25 @@ export class IntelligenceEngine {
     });
 
     if (!response.ok) {
-      throw new Error(`Erro na API Kimi: ${response.statusText}`);
+      throw new Error(`Erro na API Kimi: ${await this.readAPIError(response)}`);
     }
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content || '';
+  }
+
+  private async readAPIError(response: Response): Promise<string> {
+    try {
+      const data = await response.clone().json() as { error?: { message?: string }; message?: string };
+      return data.error?.message || data.message || response.statusText || `HTTP ${response.status}`;
+    } catch {
+      try {
+        const text = await response.clone().text();
+        return text || response.statusText || `HTTP ${response.status}`;
+      } catch {
+        return response.statusText || `HTTP ${response.status}`;
+      }
+    }
   }
 
   // ============================================================================
@@ -388,9 +458,137 @@ ${message}
 Responda de forma concisa e técnica, ajudando a identificar e corrigir o problema.`;
   }
 
+  private buildEnhanceReportPrompt(context: {
+    description: string;
+    expectedBehavior?: string;
+    element: {
+      tag: string;
+      selector: string;
+      xpath: string;
+      className: string;
+      computedStyles: Record<string, string>;
+    };
+    pageUrl: string;
+    pageTitle: string;
+    screenshotBase64?: string;
+  }): string {
+    return `Você é a IA interna do BugDetector Pro, usando o sistema .BRAIN como guia de raciocínio.
+
+${BRAIN_REWRITE_CONTEXT}
+
+Tarefa: reescrever o comentário bruto do usuário e devolver um report técnico corrigido em português do Brasil.
+
+Retorne APENAS um JSON válido neste formato:
+{
+  "title": "título curto e técnico",
+  "description": "descrição reescrita, objetiva e detalhada",
+  "severity": "low" | "medium" | "high" | "critical",
+  "markdown": "relatório completo em Markdown"
+}
+
+O Markdown deve incluir:
+- título
+- resumo
+- passos ou contexto para reproduzir
+- comportamento atual
+- comportamento esperado
+- localização exata: URL, página, tag, seletor CSS e XPath
+- estilos computados relevantes em tabela
+- hipótese técnica
+- instruções objetivas para o desenvolvedor corrigir
+
+CONTEXTO:
+URL: ${context.pageUrl}
+Página: ${context.pageTitle}
+Elemento: <${context.element.tag}>
+Seletor CSS: ${context.element.selector}
+XPath: ${context.element.xpath}
+Classes: ${context.element.className || '(sem classes)'}
+Comentário original: ${context.description}
+Comportamento esperado informado: ${context.expectedBehavior || '(não informado)'}
+Screenshot anexado: ${context.screenshotBase64 ? 'sim' : 'não'}
+Estilos computados:
+${JSON.stringify(context.element.computedStyles, null, 2)}`;
+  }
+
   // ============================================================================
   // FALLBACKS
   // ============================================================================
+
+  private parseEnhancedReport(rawResponse: string, context: {
+    description: string;
+    expectedBehavior?: string;
+    element: { tag: string; selector: string; xpath: string; className: string; computedStyles: Record<string, string> };
+    pageUrl: string;
+    pageTitle: string;
+  }): AIEnhancedReport {
+    try {
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse) as Partial<AIEnhancedReport>;
+      const severity = ['low', 'medium', 'high', 'critical'].includes(String(parsed.severity))
+        ? parsed.severity as AIEnhancedReport['severity']
+        : 'medium';
+
+      return {
+        title: String(parsed.title || 'Bug reportado'),
+        description: String(parsed.description || context.description),
+        severity,
+        markdown: String(parsed.markdown || this.createEnhancedMarkdownFallback(context, String(parsed.description || context.description), severity)),
+      };
+    } catch {
+      return {
+        title: 'Bug reportado',
+        description: rawResponse || context.description,
+        severity: 'medium',
+        markdown: this.createEnhancedMarkdownFallback(context, rawResponse || context.description, 'medium'),
+      };
+    }
+  }
+
+  private createEnhancedMarkdownFallback(
+    context: {
+      description: string;
+      expectedBehavior?: string;
+      element: { tag: string; selector: string; xpath: string; className: string; computedStyles: Record<string, string> };
+      pageUrl: string;
+      pageTitle: string;
+    },
+    description: string,
+    severity: AIEnhancedReport['severity']
+  ): string {
+    const styles = Object.entries(context.element.computedStyles)
+      .map(([key, value]) => `| ${key} | ${value || 'n/a'} |`)
+      .join('\n');
+
+    return `# Bug reportado
+
+## Resumo
+${description}
+
+## Severidade
+${severity}
+
+## Comportamento esperado
+${context.expectedBehavior || 'Não informado.'}
+
+## Localização
+| Campo | Valor |
+| --- | --- |
+| URL | ${context.pageUrl} |
+| Página | ${context.pageTitle} |
+| Elemento | <${context.element.tag}> |
+| Seletor CSS | \`${context.element.selector}\` |
+| XPath | \`${context.element.xpath}\` |
+| Classes | ${context.element.className || 'n/a'} |
+
+## Estilos computados
+| Propriedade | Valor |
+| --- | --- |
+${styles}
+
+## Orientação para correção
+Validar o componente no seletor informado, reproduzir o comportamento descrito e ajustar a implementação preservando o comportamento esperado.`;
+  }
 
   private createFallbackAnalysis(personality: PersonalityType, _rawResponse: string): PersonalityAnalysis {
     const defaults: Record<PersonalityType, PersonalityAnalysis> = {

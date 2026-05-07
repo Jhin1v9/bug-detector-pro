@@ -149,9 +149,10 @@
     </div>
   </div>
 
-  <script type="module">
-    import { BugDetector } from '../dist/index.esm.js';
-    
+  <script src="../dist/bug-detector.iife.js"></script>
+  <script>
+    const BugDetectorClass = window.BugDetector.BugDetector;
+
     let detector = null;
     let isActivated = false;
     
@@ -177,7 +178,7 @@
     document.getElementById('btn-activate').addEventListener('click', () => {
       try {
         if (!detector) {
-          detector = new BugDetector({
+          detector = new BugDetectorClass({
             trigger: 'manual',
             zIndexBase: 999999,
             capture: { console: true, network: true, screenshot: false },

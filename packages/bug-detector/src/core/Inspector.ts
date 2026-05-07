@@ -201,7 +201,11 @@ export class Inspector {
     if (!this.isActive) return;
     
     const target = e.target as HTMLElement;
-    if (!target || target === this.highlightOverlay) return;
+    if (!target || target === this.highlightOverlay || this.isBugDetectorUiTarget(target)) {
+      this.removeHighlight();
+      this.onElementHover?.(null);
+      return;
+    }
 
     this.highlightElement(target);
     
@@ -213,7 +217,7 @@ export class Inspector {
     if (!this.isActive) return;
     
     const target = e.target as HTMLElement;
-    if (!target || target === this.highlightOverlay) return;
+    if (!target || target === this.highlightOverlay || this.isBugDetectorUiTarget(target)) return;
 
     this.removeHighlight();
     this.onElementHover?.(null);
@@ -224,7 +228,7 @@ export class Inspector {
 
     const target = e.target as HTMLElement;
     // Permite interação normal dentro da UI do bug-detector (modal, botões, etc.)
-    if (!target || target === this.highlightOverlay || target.closest('[data-bug-detector-ui]')) {
+    if (!target || target === this.highlightOverlay || this.isBugDetectorUiTarget(target)) {
       return;
     }
 
@@ -234,6 +238,10 @@ export class Inspector {
     const inspected = this.createInspectedElement(target);
     this.onElementSelect?.(inspected);
   };
+
+  private isBugDetectorUiTarget(target: EventTarget | null): boolean {
+    return target instanceof Element && !!target.closest('[data-bug-detector-ui], #bug-detector-ui');
+  }
 
   private handleKeyDown = (e: KeyboardEvent): void => {
     if (!this.isActive) return;

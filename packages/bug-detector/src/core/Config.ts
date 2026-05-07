@@ -15,7 +15,8 @@ export const DEFAULT_CONFIG: Required<BugDetectorConfig> = {
   ai: {
     provider: 'none',
     apiKey: '',
-    model: 'gemini-pro',
+    model: 'kimi-for-coding',
+    baseURL: 'https://api.kimi.com/coding/v1',
     temperature: 0.3,
     timeout: 30000,
   },
@@ -94,10 +95,18 @@ export class Config {
     defaultConfig: Required<BugDetectorConfig>,
     userConfig: BugDetectorConfig
   ): Required<BugDetectorConfig> {
+    const ai = { ...defaultConfig.ai, ...userConfig.ai };
+    if (userConfig.ai?.provider && !userConfig.ai.model) {
+      ai.model = this.getDefaultAIModel(userConfig.ai.provider);
+    }
+    if (userConfig.ai?.provider === 'kimi' && !userConfig.ai.baseURL) {
+      ai.baseURL = 'https://api.kimi.com/coding/v1';
+    }
+
     return {
       ...defaultConfig,
       ...userConfig,
-      ai: { ...defaultConfig.ai, ...userConfig.ai },
+      ai,
       integrations: { ...defaultConfig.integrations, ...userConfig.integrations },
       capture: { ...defaultConfig.capture, ...userConfig.capture },
       callbacks: { ...defaultConfig.callbacks, ...userConfig.callbacks },
@@ -107,6 +116,18 @@ export class Config {
       rageClick: { ...defaultConfig.rageClick, ...userConfig.rageClick },
       video: { ...defaultConfig.video, ...userConfig.video },
     };
+  }
+
+  private getDefaultAIModel(provider: AIConfig['provider']): string {
+    const defaults: Record<AIConfig['provider'], string> = {
+      kimi: 'kimi-for-coding',
+      gemini: 'gemini-pro',
+      openai: 'gpt-4o-mini',
+      deepseek: 'deepseek-chat',
+      none: 'kimi-for-coding',
+    };
+
+    return defaults[provider];
   }
 
   /** Obtém configuração completa */

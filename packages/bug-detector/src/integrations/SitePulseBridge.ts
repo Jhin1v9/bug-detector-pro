@@ -54,7 +54,7 @@ export class SitePulseBridge {
     this.config = {
       ...config,
       geminiModel: config.geminiModel ?? 'gemini-1.5-flash',
-      kimiModel: config.kimiModel ?? 'moonshot-v1-8k',
+      kimiModel: config.kimiModel ?? 'kimi-for-coding',
     };
 
     this.cloud = new CloudAPI({ baseURL: config.cloudBaseURL });
@@ -62,6 +62,7 @@ export class SitePulseBridge {
       provider: 'gemini',
       apiKey: config.geminiApiKey,
       model: this.config.geminiModel,
+      baseURL: '',
       temperature: 0.2,
       timeout: 30000,
     });
@@ -71,6 +72,7 @@ export class SitePulseBridge {
         provider: 'kimi',
         apiKey: config.kimiApiKey,
         model: this.config.kimiModel,
+        baseURL: 'https://api.kimi.com/coding/v1',
         temperature: 0.2,
         timeout: 30000,
       });

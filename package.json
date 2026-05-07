@@ -4,11 +4,11 @@
   "private": true,
   "description": "🐛 BugDetector Pro — Developer-first bug reporting with AI",
   "scripts": {
-    "build": "pnpm -r build",
-    "dev": "pnpm -r dev",
-    "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present -- --run",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "workspaces": [
     "packages/*",
@@ -17,5 +17,5 @@
   "devDependencies": {
     "typescript": "^5.4.0"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "npm@11.6.2"
 }

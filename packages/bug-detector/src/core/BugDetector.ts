@@ -14,6 +14,7 @@ import type {
   ChatSession,
   ChatMessage,
   AIAnalysis,
+  AIEnhancedReport,
 } from '../types';
 
 import { Config } from './Config';
@@ -42,6 +43,7 @@ export class BugDetector {
   private isActive = false;
   private currentElement: InspectedElement | null = null;
   private reports: BugReport[] = [];
+  private reportsReady: Promise<void>;
   private chatSessions: Map<string, ChatSession> = new Map();
   private sessionReplay: SessionReplayEngine;
   private cloudAPI: CloudAPI | null = null;
@@ -103,11 +105,12 @@ export class BugDetector {
         onElementInspect: (el) => { this.currentElement = el; },
         onCreateReport: (data) => this.createReport(data),
         onSendMessage: (sessionId, message) => this.processChatMessage(sessionId, message),
+        onEnhanceReport: (data) => this.enhanceReportComment(data),
       }, this.config.get().zIndexBase, this.config.getBranding(), this.config.isGuestMode());
     }
 
-    // Carrega reports existentes
-    this.loadReports();
+    // Carrega reports existentes sem permitir que o load assíncrono apague reports novos.
+    this.reportsReady = this.loadReports();
   }
 
   // ============================================================================
@@ -220,6 +223,8 @@ export class BugDetector {
 
   /** Cria novo report */
   async createReport(data: CreateReportData): Promise<BugReport> {
+    await this.reportsReady;
+
     const element = data.element || this.currentElement;
     if (!element) {
       throw new Error('Nenhum elemento selecionado');
@@ -251,6 +256,7 @@ export class BugDetector {
       type: data.type || 'bug',
       severity: data.severity || 'medium',
       expectedBehavior: data.expectedBehavior,
+      markdownReport: data.markdownReport,
     };
 
     // Salva (sanitiza domElement para storage)
@@ -290,12 +296,14 @@ export class BugDetector {
 
   /** Deleta report */
   async deleteReport(id: string): Promise<void> {
+    await this.reportsReady;
     this.reports = this.reports.filter(r => r.id !== id);
     await this.storage.delete(id);
   }
 
   /** Atualiza report */
   async updateReport(id: string, updates: Partial<BugReport>): Promise<void> {
+    await this.reportsReady;
     const index = this.reports.findIndex(r => r.id === id);
     if (index === -1) return;
 
@@ -335,6 +343,7 @@ export class BugDetector {
 
   /** Analisa report com IA */
   async analyzeReport(reportId: string): Promise<AIAnalysis | null> {
+    await this.reportsReady;
     const report = this.getReport(reportId);
     if (!report) return null;
 
@@ -355,6 +364,29 @@ export class BugDetector {
       await this.updateReport(reportId, { status: 'pending' });
       return null;
     }
+  }
+
+  /** Reescreve comentário bruto com IA e devolve Markdown técnico */
+  async enhanceReportComment(data: {
+    description: string;
+    expectedBehavior?: string;
+    element: InspectedElement;
+    screenshotBase64?: string;
+  }): Promise<AIEnhancedReport> {
+    return this.intelligence.enhanceReportComment({
+      description: data.description,
+      expectedBehavior: data.expectedBehavior,
+      element: {
+        tag: data.element.tag,
+        selector: data.element.selector,
+        xpath: data.element.xpath,
+        className: data.element.className,
+        computedStyles: data.element.computedStyles,
+      },
+      pageUrl: window.location.href,
+      pageTitle: document.title,
+      screenshotBase64: data.screenshotBase64,
+    });
   }
 
   // ============================================================================
@@ -588,7 +620,20 @@ export class BugDetector {
 
   private async loadReports(): Promise<void> {
     try {
-      this.reports = await this.storage.getAll();
+      const storedReports = await this.storage.getAll();
+      const merged = new Map<string, BugReport>();
+
+      for (const report of storedReports) {
+        merged.set(report.id, report);
+      }
+
+      for (const report of this.reports) {
+        merged.set(report.id, report);
+      }
+
+      this.reports = Array.from(merged.values()).sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
     } catch (error) {
       console.error('Erro ao carregar reports:', error);
     }
