@@ -75,14 +75,14 @@ module.exports = [
   },
   // IIFE bundle (vanilla, para bookmarklet/extensão/userscript)
   {
-    input: 'src/adapters/vanilla.ts',
+    input: 'src/entry/iife.ts',
     output: [
       {
         file: 'dist/bug-detector.iife.js',
         format: 'iife',
         name: 'BugDetector',
         sourcemap: true,
-        exports: 'named',
+        exports: 'default',
         inlineDynamicImports: true,
       },
     ],
