@@ -66,17 +66,17 @@ export class IntelligenceEngine {
         'react', 'css', 'testing', 'dx'
       ];
 
-      // Executa análises em paralelo - CORREÇÃO RACE CONDITION
-      const analysesResults = await Promise.all(
-        personalities.map(async (personality) => {
-          try {
-            return await this.analyzeWithPersonality(report, personality);
-          } catch (error) {
-            console.error(`Erro na análise ${personality}:`, error);
-            return this.createFallbackAnalysis(personality, '');
-          }
-        })
-      );
+      // Executa análises sequencialmente para respeitar rate limits
+      const analysesResults: (PersonalityAnalysis | null)[] = [];
+      for (const personality of personalities) {
+        try {
+          const result = await this.analyzeWithPersonality(report, personality);
+          analysesResults.push(result);
+        } catch (error) {
+          console.error(`Erro na análise ${personality}:`, error);
+          analysesResults.push(this.createFallbackAnalysis(personality, ''));
+        }
+      }
       
       const analyses = analysesResults.filter((a): a is PersonalityAnalysis => a !== null);
 

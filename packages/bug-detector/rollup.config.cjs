@@ -3,6 +3,7 @@ const commonjs = require('@rollup/plugin-commonjs');
 const typescript = require('@rollup/plugin-typescript');
 const peerDepsExternal = require('rollup-plugin-peer-deps-external');
 const postcss = require('rollup-plugin-postcss');
+const dts = require('rollup-plugin-dts');
 
 const packageJson = require('./package.json');
 
@@ -93,10 +94,20 @@ module.exports = [
         exclude: ['**/*.test.ts'],
       }),
       postcss({
-        extract: true,
+        inject: true, // CSS inline para funcionar em bookmarklet/injeção
         minimize: true,
       }),
     ],
     external: [], // bundleia html2canvas junto
+  },
+  // Type declarations bundle
+  {
+    input: 'src/index.ts',
+    output: {
+      file: 'dist/index.d.ts',
+      format: 'esm',
+    },
+    plugins: [dts.default()],
+    external: commonExternal,
   },
 ];

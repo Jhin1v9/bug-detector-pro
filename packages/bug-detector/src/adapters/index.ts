@@ -32,5 +32,4 @@ export {
   exportReport,
   createFloatingButton,
   autoInit,
-  extendElements,
 } from './vanilla';

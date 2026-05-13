@@ -60,7 +60,7 @@ export function BugDetectorProvider({
         onDeactivate: () => {
           setIsActive(false);
           setSelectedElement(null);
-          setIsModalOpen(false);
+          // Não fecha o modal aqui — ele é controlado pelo fluxo de inspeção
           config.callbacks?.onDeactivate?.();
         },
         onElementSelected: (element) => {
@@ -81,7 +81,7 @@ export function BugDetectorProvider({
     }
 
     return () => {
-      detectorRef.current?.deactivate();
+      detectorRef.current?.destroy();
     };
   }, []);
 
@@ -169,6 +169,9 @@ export function BugDetectorProvider({
     setSelectedElement(null);
   }, []);
 
+  const openPanel = useCallback(() => setIsPanelOpen(true), []);
+  const closePanel = useCallback(() => setIsPanelOpen(false), []);
+
   const value = {
     isActive,
     activate,
@@ -181,6 +184,8 @@ export function BugDetectorProvider({
     exportReport,
     resolveReport,
     deleteReport,
+    openPanel,
+    closePanel,
     detector: detectorRef.current,
   };
 
@@ -197,6 +202,7 @@ export function BugDetectorProvider({
             onDeactivate={deactivate}
             reportCount={reports.length}
             onElementClick={handleElementClick}
+            onOpenPanel={openPanel}
           />
           <BugReportModal
             isOpen={isModalOpen}
@@ -232,7 +238,8 @@ export function BugDetectorFloatingButton({
   position = 'bottom-right',
   color = '#3b82f6',
 }: FloatingButtonProps): JSX.Element {
-  const { isActive, toggle } = useBugDetector();
+  const { isActive, toggle, openPanel, reports } = useBugDetector();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const positionStyles: Record<string, React.CSSProperties> = {
     'top-left': { top: 20, left: 20 },
@@ -241,32 +248,87 @@ export function BugDetectorFloatingButton({
     'bottom-right': { bottom: 20, right: 20 },
   };
 
+  const p = positionStyles[position];
+
   return (
-    <button
-      onClick={toggle}
-      style={{
-        position: 'fixed',
-        ...positionStyles[position],
-        width: 56,
-        height: 56,
-        borderRadius: '50%',
-        backgroundColor: isActive ? '#ef4444' : color,
-        color: 'white',
-        border: 'none',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-        cursor: 'pointer',
-        zIndex: 2147483647,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 24,
-        transition: 'all 0.2s',
-      }}
-      title={isActive ? 'Desativar Debug' : 'Ativar Debug'}
-      aria-label={isActive ? 'Desativar Debug' : 'Ativar Debug'}
-    >
-      {isActive ? '✕' : '🐛'}
-    </button>
+    <>
+      {/* Menu secundário */}
+      {menuOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            ...p,
+            zIndex: 2147483646,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            marginBottom: position.startsWith('bottom') ? 64 : undefined,
+            marginTop: position.startsWith('top') ? 64 : undefined,
+            ...(position.startsWith('bottom') ? { bottom: 84 } : {}),
+            ...(position.startsWith('top') ? { top: 84 } : {}),
+            ...(position.endsWith('left') ? { left: 20 } : {}),
+            ...(position.endsWith('right') ? { right: 20 } : {}),
+          }}
+        >
+          <button
+            onClick={() => { openPanel(); setMenuOpen(false); }}
+            style={{
+              padding: '8px 14px',
+              background: 'rgba(15,23,42,0.95)',
+              color: 'white',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 13,
+              backdropFilter: 'blur(8px)',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            📋 Ver Reports {reports.length > 0 && <span style={{ background: color, borderRadius: 10, padding: '2px 6px', fontSize: 11 }}>{reports.length}</span>}
+          </button>
+        </div>
+      )}
+
+      <button
+        onClick={(e) => {
+          if (e.shiftKey) {
+            openPanel();
+          } else {
+            toggle();
+          }
+          setMenuOpen(false);
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenuOpen((v) => !v);
+        }}
+        style={{
+          position: 'fixed',
+          ...p,
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          backgroundColor: isActive ? '#ef4444' : color,
+          color: 'white',
+          border: 'none',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          cursor: 'pointer',
+          zIndex: 2147483647,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 24,
+          transition: 'all 0.2s',
+        }}
+        title={isActive ? 'Desativar Debug (Shift+Click p/ painel, RMB p/ menu)' : 'Ativar Debug'}
+        aria-label={isActive ? 'Desativar Debug' : 'Ativar Debug'}
+      >
+        {isActive ? '✕' : '🐛'}
+      </button>
+    </>
   );
 }
 

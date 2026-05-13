@@ -55,6 +55,16 @@ export class UIManager {
     this.renderFloatingButton();
   }
 
+  /** Abre o painel de reports (público para vanilla API) */
+  openReportsPanel(): void {
+    this.renderReportsList();
+  }
+
+  /** Abre o menu de configurações (público para vanilla API) */
+  openSettingsPanel(): void {
+    this.renderPanel();
+  }
+
   /** Esconde a UI */
   hide(): void {
     if (this.container) {
@@ -216,7 +226,7 @@ export class UIManager {
   // PRIVATE METHODS - Panel
   // ============================================================================
 
-  private renderPanel(): void {
+  renderPanel(): void {
     if (!this.container) return;
 
     const existing = this.container.querySelector('[data-bugdetector-panel]');
@@ -293,10 +303,11 @@ export class UIManager {
   // PRIVATE METHODS - Helpers
   // ============================================================================
 
-  private async captureScreenshot(element: Element): Promise<string> {
+  private async captureScreenshot(element?: Element): Promise<string> {
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(element as HTMLElement, {
+      const target = element || document.body;
+      const canvas = await html2canvas(target as HTMLElement, {
         logging: false,
         useCORS: true,
         allowTaint: true,
@@ -321,6 +332,8 @@ export class UIManager {
         height: rect.height,
       });
     };
+
+    if (!element) return rects;
 
     element.querySelectorAll('input[type="password"]').forEach(addRect);
     ['cpf', 'ssn', 'credit', 'card', 'cvv', 'password', 'secret'].forEach((name) => {
@@ -416,6 +429,7 @@ export class UIManager {
           <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Comportamento Esperado</label>
           <textarea data-bugdetector-expected placeholder="Como deveria funcionar? (opcional)" style="width: 100%; min-height: 60px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 14px; resize: vertical; font-family: inherit;"></textarea>
         </div>
+        ${!this.guestMode ? `
         <div style="margin-bottom: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;" data-bugdetector-ai-section>
           <button data-bugdetector-ai-rewrite style="width: 100%; padding: 10px 12px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">Reescrever com IA + .BRAIN</button>
           <div data-bugdetector-ai-status style="display: none; margin-top: 8px; font-size: 13px; color: #93c5fd;"></div>
@@ -431,6 +445,7 @@ export class UIManager {
             </details>
           </div>
         </div>
+        ` : ''}
         ${screenshotSection}
         <div style="margin-bottom: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;" data-bugdetector-video-section>
           <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Gravação de Tela</label>
@@ -477,7 +492,15 @@ export class UIManager {
     }
 
     // Event listeners
-    const closeModal = () => modal.remove();
+    const closeModal = () => {
+      document.removeEventListener('keydown', escHandler);
+      modal.remove();
+    };
+
+    const escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    document.addEventListener('keydown', escHandler);
     
     modal.querySelector('[data-bugdetector-close-modal]')?.addEventListener('click', closeModal);
     modal.querySelector('[data-bugdetector-btn-cancel]')?.addEventListener('click', closeModal);
@@ -832,7 +855,7 @@ export class UIManager {
   // PRIVATE METHODS - Reports List
   // ============================================================================
 
-  private renderReportsList(): void {
+  renderReportsList(): void {
     if (!this.container) return;
 
     const existing = this.container.querySelector('[data-bugdetector-reports-list]');

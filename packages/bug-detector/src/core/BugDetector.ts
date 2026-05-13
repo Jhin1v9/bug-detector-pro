@@ -59,7 +59,7 @@ export class BugDetector {
   private onReportCreated?: (report: BugReport) => void;
 
   constructor(config: BugDetectorConfig = {}) {
-    this.config = Config.getInstance(config);
+    this.config = new Config(config);
     this.inspector = new Inspector();
     this.storage = new StorageManager(this.config.getPersistMethod());
     this.capture = new CaptureManager(this.config.getCapture());
@@ -132,11 +132,16 @@ export class BugDetector {
     // Ativa detecção de rage clicks
     this.rageClickDetector.activate();
 
-    // Ativa inspeção
-    this.inspector.activate(
-      (element) => this.handleElementSelect(element),
-      (element) => this.handleElementHover(element)
-    );
+    // Ativa captura de console/network
+    this.capture.activate();
+
+    // Ativa inspeção (apenas quando não em headless — React/Vue controlam a UI)
+    if (!this.config.isHeadless()) {
+      this.inspector.activate(
+        (element) => this.handleElementSelect(element),
+        (element) => this.handleElementHover(element)
+      );
+    }
 
     // Mostra UI
     this.ui?.show();
@@ -164,14 +169,31 @@ export class BugDetector {
     // Para gravação de vídeo se estiver rodando
     this.videoRecorder.stop();
 
-    // Desativa inspeção
-    this.inspector.deactivate();
+    // Desativa inspeção (se estava ativa)
+    if (!this.config.isHeadless()) {
+      this.inspector.deactivate();
+    }
+
+    // Desativa captura de console/network
+    this.capture.deactivate?.();
 
     // Esconde UI
     this.ui?.hide();
 
     // Callback
     this.onDeactivate?.();
+  }
+
+  /** Destrói o BugDetector e limpa todos os recursos */
+  destroy(): void {
+    this.deactivate();
+    this.capture.destroy();
+    this.ui?.destroy();
+    this.chatSessions.clear();
+    this.onActivate = undefined;
+    this.onDeactivate = undefined;
+    this.onElementSelected = undefined;
+    this.onReportCreated = undefined;
   }
 
   /** Alterna estado */
@@ -231,7 +253,7 @@ export class BugDetector {
     }
 
     // Captura dados
-    const captures = await this.capture.captureAll(element.domElement);
+    const captures = await this.capture.captureAll(element.domElement || undefined);
 
     // Cria report
     const report: BugReport = {
@@ -259,10 +281,10 @@ export class BugDetector {
       markdownReport: data.markdownReport,
     };
 
-    // Salva (sanitiza domElement para storage)
+    // Salva (sanitiza domElement para storage — agora opcional no tipo)
     this.reports.push(report);
-    const { domElement, ...elementWithoutDom } = report.element;
-    await this.storage.save({ ...report, element: elementWithoutDom as InspectedElement });
+    const { domElement: _domElement, ...elementWithoutDom } = report.element;
+    await this.storage.save({ ...report, element: elementWithoutDom });
 
     // Envia para cloud se configurado
     if (this.cloudAPI) {
@@ -596,11 +618,25 @@ export class BugDetector {
   // ============================================================================
 
   private handleAutoError(error: import('../devtools/AutoErrorDetector').CapturedError): void {
-    // Auto-create report for critical errors
     if (!this.isActive) return;
     console.warn('[BugDetector] Auto-captured error:', error.message);
-    // In a full implementation, this would create a BugReport automatically
-    // and optionally trigger the UI or send to cloud
+
+    const autoErrorConfig = this.config.get().autoError;
+    if (!autoErrorConfig?.enabled) return;
+
+    // Cria report automaticamente para erros críticos
+    try {
+      const report = this.createReport({
+        description: `[Auto] ${error.type}: ${error.message}`,
+        type: 'bug',
+        severity: error.type === 'js-error' || error.type === 'unhandledrejection' ? 'high' : 'medium',
+        expectedBehavior: 'Nenhum erro de JavaScript deve ocorrer',
+      });
+      // Não aguarda — fire and forget
+      report.catch((err) => console.error('[BugDetector] Falha ao criar auto-report:', err));
+    } catch (err) {
+      console.error('[BugDetector] Falha ao criar auto-report:', err);
+    }
   }
 
   private handleVideoRecording(recording: import('../capture/VideoRecorder').VideoRecording): void {
@@ -611,6 +647,8 @@ export class BugDetector {
   private handleElementSelect(element: InspectedElement): void {
     this.currentElement = element;
     this.onElementSelected?.(element);
+    // Desativa inspeção para liberar interação com a página/modal
+    this.deactivate();
     this.ui?.showReportModal(element);
   }
 

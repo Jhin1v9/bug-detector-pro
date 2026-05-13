@@ -12,6 +12,7 @@ interface BugDetectorOverlayProps {
   onDeactivate: () => void;
   reportCount: number;
   onElementClick?: (element: InspectedElement) => void;
+  onOpenPanel?: () => void;
 }
 
 export const BugDetectorOverlay: React.FC<BugDetectorOverlayProps> = ({
@@ -20,6 +21,7 @@ export const BugDetectorOverlay: React.FC<BugDetectorOverlayProps> = ({
   onDeactivate,
   reportCount,
   onElementClick,
+  onOpenPanel,
 }) => {
   const [hoveredElement, setHoveredElement] = useState<InspectedElement | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -159,6 +161,15 @@ export const BugDetectorOverlay: React.FC<BugDetectorOverlayProps> = ({
             <span>🐛</span>
             {reportCount} report{reportCount !== 1 ? 's' : ''}
           </div>
+        )}
+        {onOpenPanel && (
+          <button
+            onClick={onOpenPanel}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-700/90 hover:bg-slate-600 text-white text-sm font-medium rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
+          >
+            <span>📋</span>
+            Ver Reports
+          </button>
         )}
         <button
           onClick={onDeactivate}

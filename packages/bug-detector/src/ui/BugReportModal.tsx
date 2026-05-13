@@ -62,7 +62,8 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
 
   // Calcula retângulos sensíveis para blur automático
   const sensitiveRects = useMemo(() => {
-    if (!element?.domElement) return [];
+    const target = element?.domElement;
+    if (!target) return [];
     const rects: Array<{ x: number; y: number; width: number; height: number }> = [];
 
     const addRect = (el: Element) => {
@@ -76,12 +77,12 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
       });
     };
 
-    element.domElement.querySelectorAll('input[type="password"]').forEach(addRect);
+    target.querySelectorAll('input[type="password"]').forEach(addRect);
     const sensitiveNames = ['cpf', 'ssn', 'credit', 'card', 'cvv', 'password', 'secret'];
     sensitiveNames.forEach((name) => {
-      element.domElement.querySelectorAll(`input[name*="${name}"], input[id*="${name}"]`).forEach(addRect);
+      target.querySelectorAll(`input[name*="${name}"], input[id*="${name}"]`).forEach(addRect);
     });
-    element.domElement.querySelectorAll('input[type="email"]').forEach(addRect);
+    target.querySelectorAll('input[type="email"]').forEach(addRect);
 
     return rects;
   }, [element]);

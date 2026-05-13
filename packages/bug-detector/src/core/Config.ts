@@ -73,21 +73,12 @@ export const DEFAULT_CONFIG: Required<BugDetectorConfig> = {
   },
 };
 
-/** Classe de configuração */
+/** Classe de configuração — instância isolada por BugDetector */
 export class Config {
-  private static instance: Config;
   private config: Required<BugDetectorConfig>;
 
   constructor(userConfig: BugDetectorConfig = {}) {
     this.config = this.mergeConfig(DEFAULT_CONFIG, userConfig);
-  }
-
-  /** Singleton */
-  static getInstance(userConfig?: BugDetectorConfig): Config {
-    if (!Config.instance) {
-      Config.instance = new Config(userConfig);
-    }
-    return Config.instance;
   }
 
   /** Merge de configurações */

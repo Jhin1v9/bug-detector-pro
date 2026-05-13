@@ -240,7 +240,18 @@ export class Inspector {
   };
 
   private isBugDetectorUiTarget(target: EventTarget | null): boolean {
-    return target instanceof Element && !!target.closest('[data-bug-detector-ui], #bug-detector-ui');
+    if (!(target instanceof Element)) return false;
+    const selectors = [
+      '[data-bug-detector-ui]',
+      '#bug-detector-ui',
+      '[data-bugdetector-floating-button]',
+      '[data-bugdetector-panel]',
+      '[data-bugdetector-report-modal]',
+      '[data-bugdetector-reports-list]',
+      '[data-bugdetector-tooltip]',
+      '[data-bugdetector-annotate-overlay]',
+    ];
+    return !!target.closest(selectors.join(', '));
   }
 
   private handleKeyDown = (e: KeyboardEvent): void => {

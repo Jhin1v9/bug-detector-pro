@@ -33,8 +33,18 @@ export class CaptureManager {
 
   constructor(config: Required<CaptureConfig>) {
     this.config = config;
+  }
+
+  /** Ativa captura de console e network */
+  activate(): void {
     this.setupConsoleCapture();
     this.setupNetworkCapture();
+  }
+
+  /** Desativa captura de console e network */
+  deactivate(): void {
+    this.restoreConsole();
+    this.restoreNetwork();
   }
 
   /** Captura tudo */
@@ -147,8 +157,7 @@ export class CaptureManager {
 
   /** Destrói e limpa */
   destroy(): void {
-    this.restoreConsole();
-    this.restoreNetwork();
+    this.deactivate();
   }
 
   // ============================================================================
@@ -253,16 +262,12 @@ export class CaptureManager {
       }
     };
 
-    // Intercepta XMLHttpRequest
+    // Intercepta XMLHttpRequest — preserva prototype e propriedades estáticas
     this.originalXHR = window.XMLHttpRequest;
     const self = this;
 
-    interface InterceptedXHR extends XMLHttpRequest {
-      open(method: string, url: string | URL, async?: boolean, user?: string | null, password?: string | null): void;
-    }
-
-    window.XMLHttpRequest = function(this: InterceptedXHR): InterceptedXHR {
-      const xhr = new (self.originalXHR as typeof XMLHttpRequest)() as InterceptedXHR;
+    function InterceptedXHR(this: XMLHttpRequest): XMLHttpRequest {
+      const xhr = new (self.originalXHR as typeof XMLHttpRequest)();
       const startTime = performance.now();
       let requestUrl = '';
       let requestMethod = 'GET';
@@ -286,7 +291,22 @@ export class CaptureManager {
       });
 
       return xhr;
-    } as unknown as typeof XMLHttpRequest;
+    }
+
+    // Preserva prototype e propriedades estáticas (DONE, OPENED, etc.)
+    if (self.originalXHR) {
+      Object.setPrototypeOf(InterceptedXHR, self.originalXHR);
+      InterceptedXHR.prototype = self.originalXHR.prototype;
+      // Copia propriedades estáticas
+      for (const key of Object.getOwnPropertyNames(self.originalXHR)) {
+        if (key !== 'prototype' && key !== 'length' && key !== 'name') {
+          try {
+            (InterceptedXHR as any)[key] = (self.originalXHR as any)[key];
+          } catch { /* ignore read-only */ }
+        }
+      }
+    }
+    window.XMLHttpRequest = InterceptedXHR as unknown as typeof XMLHttpRequest;
   }
 
   private restoreNetwork(): void {

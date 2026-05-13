@@ -233,8 +233,8 @@ export interface InspectedElement {
   siblingCount: number;
   /** Número de filhos */
   childCount: number;
-  /** Referência ao elemento DOM */
-  domElement: Element;
+  /** Referência ao elemento DOM (pode estar ausente após desserialização do storage) */
+  domElement?: Element;
   /** Nome do componente (React/Vue) */
   componentName?: string;
   /** Caminho do arquivo */
@@ -587,6 +587,10 @@ export interface UseBugDetectorReturn {
   resolveReport: (id: string) => Promise<void>;
   /** Deletar report */
   deleteReport: (id: string) => Promise<void>;
+  /** Abrir painel de reports */
+  openPanel: () => void;
+  /** Fechar painel de reports */
+  closePanel: () => void;
   /** Instância do detector */
   detector: import('../core/BugDetector').BugDetector | null;
 }

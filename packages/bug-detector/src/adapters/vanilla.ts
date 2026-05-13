@@ -1,6 +1,10 @@
 /**
  * Vanilla JS Adapter para BugDetector
- * API para uso sem frameworks
+ * API simples e completa para uso sem frameworks
+ *
+ * Uso:
+ *   BugDetector.init({ shortcut: 'Ctrl+Shift+D' });
+ *   BugDetector.inject('https://cdn.../bug-detector.iife.js', { ... });
  */
 
 import { BugDetector } from '../core/BugDetector';
@@ -19,19 +23,31 @@ import type {
 
 /** Instância global */
 let globalInstance: BugDetector | null = null;
+let keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
+let floatingButton: HTMLButtonElement | null = null;
 
-/** Inicializa o BugDetector */
+/** Inicializa o BugDetector com uma única chamada */
 export function initBugDetector(config: BugDetectorConfig = {}): BugDetector {
   if (globalInstance) {
-    console.warn('BugDetector já inicializado. Use getBugDetector() ou reinicie.');
+    console.warn('[BugDetector] Já inicializado. Use destroyBugDetector() primeiro se quiser reiniciar.');
     return globalInstance;
   }
 
   globalInstance = new BugDetector(config);
-  
+
   // Auto-ativa com atalho de teclado
   if (config.trigger === 'keyboard-shortcut' && config.shortcut) {
     setupKeyboardShortcut(config.shortcut);
+  }
+
+  // Cria botão flutuante se configurado
+  if (config.trigger === 'floating-button') {
+    createFloatingButton(config.branding);
+  }
+
+  // Auto-ativa em desenvolvimento
+  if (config.autoActivateInDev && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    globalInstance.activate();
   }
 
   return globalInstance;
@@ -40,17 +56,81 @@ export function initBugDetector(config: BugDetectorConfig = {}): BugDetector {
 /** Obtém instância existente */
 export function getBugDetector(): BugDetector {
   if (!globalInstance) {
-    throw new Error('BugDetector não inicializado. Chame initBugDetector() primeiro.');
+    throw new Error('BugDetector não inicializado. Chame BugDetector.init() primeiro.');
   }
   return globalInstance;
 }
 
-/** Destrói instância */
+/** Destrói instância e limpa tudo */
 export function destroyBugDetector(): void {
   if (globalInstance) {
-    globalInstance.deactivate();
+    globalInstance.destroy();
     globalInstance = null;
   }
+  if (keyboardHandler) {
+    document.removeEventListener('keydown', keyboardHandler);
+    keyboardHandler = null;
+  }
+  if (floatingButton) {
+    floatingButton.remove();
+    floatingButton = null;
+  }
+}
+
+// ============================================================================
+// INJEÇÃO REMOTA (CDN / Bookmarklet)
+// ============================================================================
+
+/** Injeta o BugDetector via script tag remota */
+export function injectBugDetector(
+  scriptUrl: string,
+  config: BugDetectorConfig = {}
+): Promise<BugDetector> {
+  return new Promise((resolve, reject) => {
+    if (typeof document === 'undefined') {
+      reject(new Error('document não disponível'));
+      return;
+    }
+    if ((window as any).__bugDetectorInjected) {
+      resolve(getBugDetector());
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = scriptUrl;
+    script.crossOrigin = 'anonymous';
+    script.onload = () => {
+      (window as any).__bugDetectorInjected = true;
+      const detector = initBugDetector(config);
+      resolve(detector);
+    };
+    script.onerror = () => reject(new Error(`Falha ao carregar ${scriptUrl}`));
+    document.head.appendChild(script);
+  });
+}
+
+/** Gera código de bookmarklet para injeção */
+export function generateBookmarklet(
+  scriptUrl: string,
+  config: BugDetectorConfig = {}
+): string {
+  const configJson = JSON.stringify(config);
+  const code = `
+    (function(){
+      if(window.__bugDetectorInjected)return;
+      window.__bugDetectorInjected=true;
+      var s=document.createElement('script');
+      s.src='${scriptUrl}';
+      s.crossOrigin='anonymous';
+      s.onload=function(){
+        if(window.BugDetector&&window.BugDetector.init){
+          window.BugDetector.init(${configJson});
+        }
+      };
+      document.head.appendChild(s);
+    })();
+  `;
+  return 'javascript:' + encodeURIComponent(code.trim().replace(/\s+/g, ' '));
 }
 
 // ============================================================================
@@ -79,7 +159,7 @@ export function inspect(element: Element | string): InspectedElement {
 
 /** Cria report */
 export async function report(
-  description: string, 
+  description: string,
   options: Partial<CreateReportData> = {}
 ): Promise<BugReport> {
   return getBugDetector().createReport({
@@ -95,34 +175,44 @@ export function getReports(): BugReport[] {
 
 /** Exporta report */
 export async function exportReport(
-  reportId: string, 
+  reportId: string,
   format: ExportOptions['format'] = 'markdown'
 ): Promise<ExportResult> {
   return getBugDetector().exportReport(reportId, { format });
 }
 
-/** Cria botão flutuante */
-export function createFloatingButton(options: {
+// ============================================================================
+// BOTÃO FLUTUANTE
+// ============================================================================
+
+interface FloatingButtonBranding {
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   color?: string;
-  size?: number;
-} = {}): HTMLButtonElement {
-  const { 
-    position = 'bottom-right', 
-    color = '#3b82f6',
-    size = 56 
-  } = options;
+  logoURL?: string;
+  buttonText?: string;
+}
 
-  const button = document.createElement('button');
-  button.innerHTML = '🐛';
-  button.title = 'Ativar Debug';
-  
+export function createFloatingButton(branding: FloatingButtonBranding = {}): HTMLButtonElement {
+  if (floatingButton) {
+    floatingButton.remove();
+  }
+
+  const position = branding.position || 'bottom-right';
+  const color = branding.color || '#3b82f6';
+  const size = 56;
+
   const positions: Record<string, { top?: string; left?: string; right?: string; bottom?: string }> = {
     'top-left': { top: '20px', left: '20px' },
     'top-right': { top: '20px', right: '20px' },
     'bottom-left': { bottom: '20px', left: '20px' },
     'bottom-right': { bottom: '20px', right: '20px' },
   };
+
+  const button = document.createElement('button');
+  button.innerHTML = branding.logoURL
+    ? `<img src="${branding.logoURL}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;">`
+    : (branding.buttonText || '🐛');
+  button.title = 'BugDetector Pro — Click para ativar, Shift+Click para painel, RMB para menu';
 
   Object.assign(button.style, {
     position: 'fixed',
@@ -139,20 +229,110 @@ export function createFloatingButton(options: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: `${size * 0.4}px`,
+    fontSize: branding.buttonText ? '14px' : '24px',
+    fontWeight: '600',
     transition: 'all 0.2s',
   });
 
-  button.addEventListener('click', () => {
+  button.addEventListener('mouseenter', () => {
+    button.style.transform = 'scale(1.1)';
+  });
+  button.addEventListener('mouseleave', () => {
+    button.style.transform = 'scale(1)';
+  });
+
+  button.addEventListener('click', (e) => {
     const detector = getBugDetector();
-    detector.toggle();
-    button.innerHTML = detector.isActivated() ? '✕' : '🐛';
-    button.title = detector.isActivated() ? 'Desativar Debug' : 'Ativar Debug';
-    button.style.backgroundColor = detector.isActivated() ? '#ef4444' : color;
+    if (e.shiftKey) {
+      // Abre painel de reports via UIManager
+      (detector as any).ui?.renderReportsList?.();
+    } else {
+      detector.toggle();
+      updateButtonState();
+    }
+  });
+
+  // Menu com RMB
+  button.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showContextMenu(button, color);
   });
 
   document.body.appendChild(button);
+  floatingButton = button;
   return button;
+}
+
+function updateButtonState(): void {
+  if (!floatingButton || !globalInstance) return;
+  const isActive = globalInstance.isActivated();
+  const config = (globalInstance as any).config?.getBranding?.() || {};
+  floatingButton.innerHTML = config.logoURL
+    ? `<img src="${config.logoURL}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;">`
+    : (isActive ? '✕' : '🐛');
+  floatingButton.style.backgroundColor = isActive ? '#ef4444' : (config.primaryColor || '#3b82f6');
+  floatingButton.title = isActive ? 'Desativar Debug' : 'Ativar Debug';
+}
+
+function showContextMenu(button: HTMLButtonElement, color: string): void {
+  const existing = document.querySelector('[data-bugdetector-context-menu]');
+  if (existing) { existing.remove(); return; }
+
+  const rect = button.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.setAttribute('data-bugdetector-context-menu', '');
+  menu.style.cssText = `
+    position: fixed;
+    bottom: ${window.innerHeight - rect.top + 8}px;
+    right: ${window.innerWidth - rect.right}px;
+    background: rgba(15,23,42,0.98);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 2147483647;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    min-width: 160px;
+  `;
+
+  const items = [
+    { label: '📋 Ver Reports', action: () => { (globalInstance as any).ui?.renderReportsList?.(); } },
+    { label: '🔍 Inspecionar', action: () => { globalInstance?.activate(); } },
+    { label: '⚙️ Configurações', action: () => { (globalInstance as any).ui?.renderPanel?.(); } },
+  ];
+
+  items.forEach(item => {
+    const btn = document.createElement('button');
+    btn.textContent = item.label;
+    btn.style.cssText = `
+      text-align: left;
+      padding: 8px 12px;
+      background: transparent;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    `;
+    btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(255,255,255,0.1)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'transparent'; });
+    btn.addEventListener('click', () => { item.action(); menu.remove(); });
+    menu.appendChild(btn);
+  });
+
+  document.body.appendChild(menu);
+
+  // Fecha ao clicar fora
+  const closeMenu = (e: MouseEvent) => {
+    if (!menu.contains(e.target as Node)) {
+      menu.remove();
+      document.removeEventListener('click', closeMenu);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeMenu), 0);
 }
 
 // ============================================================================
@@ -162,8 +342,8 @@ export function createFloatingButton(options: {
 /** Configura atalho de teclado */
 function setupKeyboardShortcut(shortcut: string): void {
   const keys = shortcut.toLowerCase().split('+');
-  
-  document.addEventListener('keydown', (e) => {
+
+  keyboardHandler = (e: KeyboardEvent) => {
     const hasCtrl = keys.includes('ctrl') || keys.includes('control');
     const hasShift = keys.includes('shift');
     const hasAlt = keys.includes('alt');
@@ -178,12 +358,13 @@ function setupKeyboardShortcut(shortcut: string): void {
       e.preventDefault();
       getBugDetector().toggle();
     }
-  });
+  };
+
+  document.addEventListener('keydown', keyboardHandler);
 }
 
 /** Auto-inicialização */
 export function autoInit(config: BugDetectorConfig = {}): void {
-  // Aguarda DOM estar pronto
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => init(config));
   } else {
@@ -192,45 +373,12 @@ export function autoInit(config: BugDetectorConfig = {}): void {
 
   function init(cfg: BugDetectorConfig) {
     const detector = initBugDetector(cfg);
-    
-    // Cria botão flutuante se configurado
     if (cfg.trigger === 'floating-button') {
-      createFloatingButton();
+      createFloatingButton(cfg.branding);
     }
-
-    // Auto-ativa em desenvolvimento
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
       detector.activate();
     }
-  }
-}
-
-// ============================================================================
-// EXTENSÃO DE ELEMENTOS
-// ============================================================================
-
-/** Extensão do Element.prototype */
-interface ElementWithBugDetector extends Element {
-  inspect(): InspectedElement;
-  report(description: string, options?: Partial<CreateReportData>): Promise<BugReport>;
-}
-
-/** Adiciona método inspect a todos os elementos */
-export function extendElements(): void {
-  if (typeof Element !== 'undefined') {
-    (Element.prototype as ElementWithBugDetector).inspect = function(this: Element) {
-      return getBugDetector().inspectElement(this);
-    };
-
-    (Element.prototype as ElementWithBugDetector).report = function(
-      this: Element, 
-      description: string, 
-      options?: Partial<CreateReportData>
-    ) {
-      const detector = getBugDetector();
-      detector.inspectElement(this);
-      return detector.createReport({ description, ...options });
-    };
   }
 }
 
@@ -248,11 +396,13 @@ export {
   ExportResult,
 };
 
-/** Exporta tudo em um objeto */
+/** Exporta tudo em um objeto global */
 export const BugDetectorAPI = {
   init: initBugDetector,
   get: getBugDetector,
   destroy: destroyBugDetector,
+  inject: injectBugDetector,
+  bookmarklet: generateBookmarklet,
   activate,
   deactivate,
   toggle,
@@ -262,7 +412,6 @@ export const BugDetectorAPI = {
   exportReport,
   createFloatingButton,
   autoInit,
-  extendElements,
 };
 
 export default BugDetectorAPI;
