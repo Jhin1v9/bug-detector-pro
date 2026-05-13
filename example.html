@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BugDetector Pro — Demo Vanilla</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+    h1 { font-size: 2.5rem; background: linear-gradient(135deg, #06b6d4, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+    .subtitle { color: #64748b; font-size: 1.1rem; margin-bottom: 32px; }
+    .card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1.1rem; color: #94a3b8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    code {
+      background: rgba(15,23,42,0.8);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.9em;
+      color: #22d3ee;
+    }
+    pre {
+      background: rgba(2,6,23,0.8);
+      padding: 16px;
+      border-radius: 12px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      border: 1px solid rgba(255,255,255,0.05);
+      margin-top: 12px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 12px;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(6,182,212,0.3); }
+    .btn.secondary { background: rgba(255,255,255,0.08); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+    .feature {
+      background: rgba(255,255,255,0.03);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .feature h3 { font-size: 0.95rem; color: #cbd5e1; margin-bottom: 6px; }
+    .feature p { font-size: 0.85rem; color: #64748b; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(16,185,129,0.15);
+      color: #34d399;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🐛 BugDetector Pro</h1>
+    <p class="subtitle">Demo de injeção vanilla em qualquer página. Teste os 3 métodos abaixo.</p>
+
+    <div class="card">
+      <h2>🔥 Método 1 — Script Tag <span class="badge">Recomendado</span></h2>
+      <p>Inclua no <code>&lt;head&gt;</code> da sua página:</p>
+      <pre>&lt;script src="packages/bug-detector/dist/bug-detector.iife.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  BugDetector.init({
+    shortcut: 'Ctrl+Shift+D',
+    trigger: 'floating-button',
+    branding: { primaryColor: '#06b6d4', position: 'bottom-right' }
+  });
+&lt;/script&gt;</pre>
+      <button class="btn" onclick="initInline()">▶ Iniciar agora</button>
+    </div>
+
+    <div class="card">
+      <h2>💉 Método 2 — Injeção via Console</h2>
+      <p>Abra o DevTools (F12), cole no console:</p>
+      <pre>BugDetector.inject(
+  'https://raw.githack.com/Jhin1v9/bug-detector-pro/main/packages/bug-detector/dist/bug-detector.iife.js',
+  { trigger: 'keyboard-shortcut', shortcut: 'Ctrl+Shift+D' }
+);</pre>
+      <button class="btn secondary" onclick="initInject()">▶ Testar injeção</button>
+    </div>
+
+    <div class="card">
+      <h2>🔖 Método 3 — Bookmarklet</h2>
+      <p>Arraste este link para a barra de favoritos:</p>
+      <pre id="bookmarklet"></pre>
+      <a id="bookmarkletLink" href="#" class="btn secondary">🐛 BugDetector</a>
+    </div>
+
+    <div class="grid">
+      <div class="feature">
+        <h3>🎯 Inspeção Visual</h3>
+        <p>Passe o mouse e clique em qualquer elemento para reportar.</p>
+      </div>
+      <div class="feature">
+        <h3>📸 Screenshot + Anotações</h3>
+        <p>Captura automática com blur de dados sensíveis e canvas de anotações.</p>
+      </div>
+      <div class="feature">
+        <h3>🧠 IA Integrada</h3>
+        <p>Reescreve seu comentário bruto em report técnico completo.</p>
+      </div>
+      <div class="feature">
+        <h3>☁️ Cloud Dashboard</h3>
+        <p>Sincroniza reports em tempo real com o backend Node.js.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Gera bookmarklet
+    const scriptUrl = location.origin + '/packages/bug-detector/dist/bug-detector.iife.js';
+    const bookmarkletCode = `javascript:(function(){if(window.__bugDetectorInjected)return;window.__bugDetectorInjected=true;var s=document.createElement('script');s.src='${scriptUrl}';s.crossOrigin='anonymous';s.onload=function(){if(window.BugDetector&&window.BugDetector.init){window.BugDetector.init({trigger:'floating-button',branding:{primaryColor:'#06b6d4'}});}};document.head.appendChild(s);})();`;
+    document.getElementById('bookmarklet').textContent = bookmarkletCode;
+    document.getElementById('bookmarkletLink').href = bookmarkletCode;
+
+    function initInline() {
+      if (typeof BugDetector === 'undefined') {
+        alert('BugDetector ainda não carregado. Aguarde ou recarregue a página.');
+        return;
+      }
+      BugDetector.init({
+        shortcut: 'Ctrl+Shift+D',
+        trigger: 'floating-button',
+        branding: { primaryColor: '#06b6d4', position: 'bottom-right' }
+      });
+      alert('BugDetector iniciado! Use Ctrl+Shift+D ou o botão flutuante 🐛');
+    }
+
+    function initInject() {
+      const url = location.origin + '/packages/bug-detector/dist/bug-detector.iife.js';
+      BugDetector.inject(url, {
+        trigger: 'keyboard-shortcut',
+        shortcut: 'Ctrl+Shift+D'
+      }).then(() => {
+        alert('Injeção completa! Use Ctrl+Shift+D para ativar.');
+      }).catch(err => {
+        alert('Erro na injeção: ' + err.message);
+      });
+    }
+  </script>
+
+  <!-- Pré-carrega o IIFE para o Método 1 funcionar -->
+  <script src="packages/bug-detector/dist/bug-detector.iife.js"></script>
+</body>
+</html>
