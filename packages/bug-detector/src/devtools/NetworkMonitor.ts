@@ -67,14 +67,15 @@ export class NetworkMonitor {
   private interceptFetch(): void {
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const startTime = performance.now();
-      const url = typeof input === 'string' ? input : input.toString();
+      const url = typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString();
       const method = init?.method ?? 'GET';
 
       try {
         const response = await this.originalFetch(input, init);
         const duration = performance.now() - startTime;
 
-        if (this.config.captureSuccessful || !response.ok) {
+        if ((this.config.captureSuccessful && response.ok) ||
+            (this.config.captureFailed && !response.ok)) {
           this.addRequest({
             url,
             method,

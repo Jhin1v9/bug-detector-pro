@@ -58,7 +58,7 @@ function saveReport(report) {
   `);
   stmt.run({
     id: report.id,
-    timestamp: report.timestamp,
+    timestamp: report.timestamp || new Date().toISOString(),
     status: report.status || 'pending',
     url: report.url || null,
     pageTitle: report.pageTitle || null,
@@ -66,8 +66,8 @@ function saveReport(report) {
     viewportWidth: report.viewport?.width || null,
     viewportHeight: report.viewport?.height || null,
     description: report.description,
-    type: report.type,
-    severity: report.severity,
+    type: report.type || 'bug',
+    severity: report.severity || 'medium',
     expectedBehavior: report.expectedBehavior || null,
     screenshot: report.screenshot || null,
     video: report.video || null,
