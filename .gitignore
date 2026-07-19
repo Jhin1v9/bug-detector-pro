@@ -34,3 +34,8 @@ playwright-report/
 # Misc
 *.db
 *.db-journal
+
+# brain-sync runtime state
+.brain/.pending-commits
+.brain/.pending-commits.inflight
+.brain/.sync.lock
